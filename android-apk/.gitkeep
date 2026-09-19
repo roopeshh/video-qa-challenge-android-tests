@@ -1,0 +1,2 @@
+# Drop an APK here to run the suite against it instead of the app repo's
+# prebuilt binary. *.apk files in this folder are gitignored.
