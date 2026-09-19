@@ -1,6 +1,9 @@
 android-app/
 android-apk/*
 !android-apk/.gitkeep
+reports/
+allure-results/
+devicefarm/build/
 node_modules/
 .env
 .env.*

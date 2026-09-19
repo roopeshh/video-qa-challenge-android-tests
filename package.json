@@ -2,6 +2,14 @@
   "name": "video-qa-challenge-android-tests",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "pretest:local": "bash scripts/start-emulator.sh && bash scripts/wait-for-emulator.sh && bash scripts/install-app.sh",
+    "test:local": "wdio run wdio.conf.ts",
+    "test:ci": "bash scripts/install-app.sh && wdio run wdio.conf.ts",
+    "test:devicefarm": "wdio run wdio.conf.ts",
+    "package:devicefarm": "bash scripts/build-devicefarm-package.sh",
+    "lint": "tsc --noEmit && eslint . --ext .ts && prettier --check ."
+  },
   "devDependencies": {
     "@types/mocha": "10.0.10",
     "@types/node": "22.18.1",
