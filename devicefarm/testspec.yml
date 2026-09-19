@@ -1,0 +1,69 @@
+version: 0.1
+
+# Runs inside AWS Device Farm's own execution host, not on the GitHub Actions
+# runner. Device Farm has already uploaded and installed the app (via the
+# appArn passed to the aws-devicefarm-mobile-device-testing action), but the
+# custom test environment is still responsible for selecting and starting the
+# Appium server — see the AWS Device Farm test-spec reference for this exact
+# pattern. wdio.conf.ts detects DEVICEFARM_APP_PATH and skips its local
+# `appium` service so only this test spec starts the server.
+android_test_host: amazon_linux_2
+
+phases:
+  install:
+    commands:
+      - devicefarm-cli use node 22
+      - devicefarm-cli use appium 2
+      - export APPIUM_BASE_PATH=
+      # Device Farm unpacks the uploaded test package here; npm pack's archive
+      # contains the project files under package/.
+      - cd $DEVICEFARM_TEST_PACKAGE_PATH
+      - tar -xzf *.tgz
+      - mv package/* .
+      - npm ci
+      - |-
+        appium driver list --installed --json |
+          node -e "const fs = require('node:fs'); const drivers = JSON.parse(fs.readFileSync(0, 'utf8')); process.exit(drivers.uiautomator2?.version === '4.2.9' ? 0 : 1)" ||
+          appium driver install uiautomator2@4.2.9
+
+  pre_test:
+    commands:
+      - |-
+        appium --base-path=$APPIUM_BASE_PATH --log-timestamp \
+          --log-no-colors --relaxed-security --default-capabilities \
+          "{\"appium:deviceName\": \"$DEVICEFARM_DEVICE_NAME\", \
+          \"platformName\": \"$DEVICEFARM_DEVICE_PLATFORM_NAME\", \
+          \"appium:app\": \"$DEVICEFARM_APP_PATH\", \
+          \"appium:udid\": \"$DEVICEFARM_DEVICE_UDID\", \
+          \"appium:platformVersion\": \"$DEVICEFARM_DEVICE_OS_VERSION\", \
+          \"appium:automationName\": \"UiAutomator2\", \
+          \"appium:disableIdLocatorAutocompletion\": true, \
+          \"appium:noReset\": false, \
+          \"appium:autoGrantPermissions\": true}" \
+          >> $DEVICEFARM_LOG_DIR/appium.log 2>&1 &
+      - |-
+        appium_initialization_time=0;
+        until curl --silent --fail "http://0.0.0.0:4723${APPIUM_BASE_PATH}/status"; do
+          if [[ $appium_initialization_time -gt 60 ]]; then
+            echo "Appium did not start within 60 seconds. Exiting...";
+            exit 1;
+          fi;
+          appium_initialization_time=$((appium_initialization_time+1));
+          sleep 1;
+        done;
+
+  test:
+    commands:
+      - cd $DEVICEFARM_TEST_PACKAGE_PATH
+      - npm run test:devicefarm
+
+  post_test:
+    commands:
+      # Device Farm collects whatever is in $DEVICEFARM_LOG_DIR as
+      # "customer artifacts" alongside its own video/screenshots/device logs.
+      # These are our own Mochawesome/Allure reports from this same run.
+      - cp -r "$DEVICEFARM_TEST_PACKAGE_PATH/reports/mochawesome" "$DEVICEFARM_LOG_DIR/mochawesome-report" || true
+      - cp -r "$DEVICEFARM_TEST_PACKAGE_PATH/reports/allure-report" "$DEVICEFARM_LOG_DIR/allure-report" || true
+
+artifacts:
+  - $DEVICEFARM_LOG_DIR

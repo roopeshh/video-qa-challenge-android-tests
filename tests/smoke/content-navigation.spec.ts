@@ -1,18 +1,8 @@
+import { content, contentTitles } from '../../src/fixtures/content';
 import { relaunchWith } from '../../src/helpers/appState';
 import consentScreen from '../../src/screens/consent.screen';
 import detailScreen from '../../src/screens/detail.screen';
 import overviewScreen from '../../src/screens/overview.screen';
-
-const content = [
-  { id: 'amsterdam', title: 'Amsterdam from above' },
-  { id: 'newsroom', title: 'Inside the newsroom' },
-  { id: 'morning', title: 'Morning news update' },
-  { id: 'technology', title: 'Technology of tomorrow' },
-  { id: 'travel', title: 'Weekend travel guide' },
-  { id: 'interview', title: 'Interview of the day' },
-] as const;
-
-const contentTitles = content.map(({ title }) => title);
 
 describe('Content navigation', () => {
   beforeEach(async () => {

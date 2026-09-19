@@ -103,7 +103,6 @@ Fully specified for completeness and future extension. Not built now because eac
 | TC01 | `tests/smoke/consent.spec.ts` |
 | TC02, TC12, TC13 | `tests/smoke/content-navigation.spec.ts` |
 | TC03, TC09, TC10, TC11 | `tests/smoke/playback.spec.ts` |
-| TC04, TC05, TC06 | `tests/regression/negative-states.spec.ts` |
+| TC04, TC05, TC06, TC14 | `tests/regression/negative-states.spec.ts` |
 | TC07, TC08 | `tests/regression/player-edge-cases.spec.ts` |
-| TC14 | Not yet automated — identified in this revision. Natural home is `tests/regression/negative-states.spec.ts` alongside TC04–TC06 once written. |
 | TC15–TC22 (P2) | Not automated this pass — no spec file.|

@@ -1,0 +1,177 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Where to run the suite'
+        required: true
+        default: ubuntu-emulator
+        type: choice
+        options:
+          - ubuntu-emulator
+          - aws-device-farm
+
+jobs:
+  lint:
+    # No emulator/device needed, so this runs on every dispatch regardless
+    # of which target was chosen — nothing else in this workflow previously
+    # checked lint, formatting, or types, so violations could merge silently.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run lint
+
+  emulator-e2e:
+    if: github.event.inputs.target == 'ubuntu-emulator'
+    runs-on: ubuntu-latest
+    env:
+      AVD_API_LEVEL: 35
+      AVD_TARGET: google_apis
+      AVD_ARCH: x86_64
+      AVD_PROFILE: pixel_6
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - run: npm ci
+
+      - name: Ensure UiAutomator2 driver
+        run: |
+          if npx appium driver list --installed --json |
+            node -e "const fs = require('node:fs'); const drivers = JSON.parse(fs.readFileSync(0, 'utf8')); process.exit(drivers.uiautomator2 ? 0 : 1)"; then
+            echo "UiAutomator2 is already installed."
+          else
+            npx appium driver install uiautomator2
+          fi
+
+      - name: Boot emulator and run suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.AVD_API_LEVEL }}
+          target: ${{ env.AVD_TARGET }}
+          arch: ${{ env.AVD_ARCH }}
+          profile: ${{ env.AVD_PROFILE }}
+          avd-name: video-qa-api-${{ env.AVD_API_LEVEL }}
+          force-avd-creation: true
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: npm run test:ci
+
+      - name: Upload Mochawesome report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mochawesome-report
+          path: reports/mochawesome/
+
+      - name: Upload Allure report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report
+          path: reports/allure-report/
+
+  device-farm-e2e:
+    if: github.event.inputs.target == 'aws-device-farm'
+    runs-on: ubuntu-latest
+    # id-token: write is required for the OIDC-based role-to-assume below —
+    # see README/architecture.md for the one-time AWS + repo setup this job
+    # depends on (IAM role trust policy, Device Farm project/device pool,
+    # and the three secrets referenced here). None of that can be created
+    # from this workflow itself.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # Fails fast with an actionable message when the one-time AWS setup is
+      # missing — secrets that aren't configured resolve to empty strings,
+      # which otherwise surfaces as 12 cryptic "could not load credentials"
+      # retries inside configure-aws-credentials.
+      - name: Verify AWS secrets are configured
+        env:
+          AWS_DEVICE_FARM_ROLE_ARN: ${{ secrets.AWS_DEVICE_FARM_ROLE_ARN }}
+          AWS_DEVICE_FARM_PROJECT_ARN: ${{ secrets.AWS_DEVICE_FARM_PROJECT_ARN }}
+          AWS_DEVICE_FARM_DEVICE_POOL_ARN: ${{ secrets.AWS_DEVICE_FARM_DEVICE_POOL_ARN }}
+        run: |
+          missing=0
+          for name in AWS_DEVICE_FARM_ROLE_ARN AWS_DEVICE_FARM_PROJECT_ARN AWS_DEVICE_FARM_DEVICE_POOL_ARN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repo secret $name is not set — see architecture.md §6 for the one-time AWS setup."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Resolve APK under test
+        id: apk
+        # android-apk/*.apk wins over the app repo's prebuilt binary — the
+        # same rule install-app.sh and wdio.conf.ts go through.
+        run: echo "path=$(bash scripts/resolve-apk.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Build Appium Node.js test package
+        run: npm run package:devicefarm
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEVICE_FARM_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Run suite on AWS Device Farm
+        id: run-test
+        uses: aws-actions/aws-devicefarm-mobile-device-testing@v3
+        with:
+          run-settings-json: |
+            {
+              "name": "video-qa-e2e-${{ github.run_id }}",
+              "projectArn": "${{ secrets.AWS_DEVICE_FARM_PROJECT_ARN }}",
+              "appArn": "${{ steps.apk.outputs.path }}",
+              "devicePoolArn": "${{ secrets.AWS_DEVICE_FARM_DEVICE_POOL_ARN }}",
+              "test": {
+                "type": "APPIUM_NODE",
+                "testPackageArn": "devicefarm/build/tests_zip_file.zip",
+                "testSpecArn": "devicefarm/testspec.yml"
+              }
+            }
+          artifact-types: VIDEO,SCREENSHOT,CUSTOMER_ARTIFACT
+
+      - name: Upload Device Farm artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: device-farm-results
+          path: ${{ steps.run-test.outputs.artifact-folder }}

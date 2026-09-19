@@ -1,3 +1,4 @@
+import { contentTitles } from '../../src/fixtures/content';
 import { relaunchWith } from '../../src/helpers/appState';
 import type { ContentMode } from '../../src/helpers/launchArgs';
 import consentScreen from '../../src/screens/consent.screen';
@@ -66,6 +67,28 @@ describe('Negative content states', () => {
 
       await overviewScreen.list.waitForDisplayed();
       await expect(overviewScreen.list).toBeDisplayed();
+    });
+  });
+
+  describe('contentMode: slow', () => {
+    beforeEach(async () => {
+      // Slow mode's own default delay is ~5s; fixing it keeps the test fast
+      // while still exercising the delayed-response path.
+      await launchWithContentMode('slow', 1500);
+    });
+
+    it('TC14 slow response still loads the full video list', async () => {
+      // Same transient-indicator reasoning as TC05/TC06: waitForDisplayed()
+      // is the assertion, with no separate toBeDisplayed() re-check.
+      await overviewScreen.loadingIndicator.waitForDisplayed();
+
+      await overviewScreen.list.waitForDisplayed();
+      await expect(overviewScreen.list).toBeDisplayed();
+
+      const titles = await overviewScreen.getContentTitlesInDisplayOrder(
+        contentTitles.length,
+      );
+      expect(titles).toEqual(contentTitles);
     });
   });
 });
