@@ -59,9 +59,9 @@ video-qa-android-tests/
 ├── reports/
 │   ├── mochawesome/                 # Mochawesome HTML report; uploaded as CI artifact
 │   └── allure-report/               # Allure HTML report; uploaded as CI artifact
-├── wdio.conf.ts                     # environment-agnostic — see §5
+├── wdio.conf.ts                     # environment-agnostic — see #5
 ├── tsconfig.json
-├── package.json                     # see §4 for the script layer
+├── package.json                     # see #4 for the script layer
 ├── .nvmrc
 ├── architecture.md
 ├── setup.md
@@ -147,7 +147,7 @@ The complete SDK-location resolution and tool validation live in `scripts/androi
 ```
 
 - **`npm run test:local`** — the single command to set up and run everything locally. It resolves the APK (dropped into `android-apk/`, or fetched from the app repo if that folder is empty), boots the emulator if none is already running (safe to run repeatedly — it no-ops if you already have one booted, which saves the ~30s boot time on repeat runs during a coding session), waits for it, installs the app, then runs the suite.
-- **`npm run test:ci`** — no emulator boot step, because in CI the `reactivecircus/android-emulator-runner` action owns booting the emulator *before* this script runs (see §6). Everything else is identical.
+- **`npm run test:ci`** — no emulator boot step, because in CI the `reactivecircus/android-emulator-runner` action owns booting the emulator *before* this script runs (see #6). Everything else is identical.
 
 **Why `test:local` never explicitly calls `pretest:local`, and it still runs.** npm automatically runs a `pre<name>` script before any `npm run <name>`, for *any* script name — not just the well-known lifecycle ones like `test` or `install`. Because a script literally named `pretest:local` exists, `npm run test:local` triggers it automatically before `test:local`'s own body runs — so that body is just the `wdio run` call; the setup sequence doesn't need to be referenced there at all.
 
@@ -338,7 +338,7 @@ What's different about this path, and why:
 
 **`video_play_button` is reused across two screens, but Compose only ever composes one of them.** The detail page's preview button and the player's own play/resume button both carry the tag `video_play_button`. `DetailScreen.kt` renders the preview or the player with `if (playerStarted) { PlayerSection(...) } else { Box { ...video_play_button... } }` — an `if/else`, not a show/hide — so only one branch is ever in the composed tree at a time, and the same is true of the player's own play/pause toggle. That's confirmed against the app's Kotlin source, which is why `player.screen.ts`'s `playButton` getter can be a plain `$('id=video_play_button')` rather than a scoped or XPath-qualified lookup.
 
-**Test isolation is launch-time, not UI-driven.** `src/helpers/appState.ts`'s `relaunchWith()` runs before every spec (from each file's `beforeEach`, never from inside a screen object): it force-stops the app (`adb shell am force-stop`), then relaunches it (`adb shell am start -S -W`) with intent extras built by `src/helpers/launchArgs.ts`. The `-W` flag blocks until Android reports the activity as fully idle rather than returning as soon as the start request is accepted — without it, `relaunchWith()` can resolve before anything has rendered, racing the first `waitForDisplayed()` call, which showed up as real flake on the CI emulator's slower rendering. `launchArgs.ts` is the single place that builds `--ez`/`--es`/`--ei` extras strings (`resetAllState`, `resetConsent`, `contentMode`, `videoMode`, `contentDelayMs`, `videoBufferingMs`) — every mode the app's debug-options screen offers has this launch-extra equivalent (see `TEST_PLAN.md` §3.1), so tests never need to tap through the debug UI to reach a given state, and can't leak state between specs the way UI-driven setup could.
+**Test isolation is launch-time, not UI-driven.** `src/helpers/appState.ts`'s `relaunchWith()` runs before every spec (from each file's `beforeEach`, never from inside a screen object): it force-stops the app (`adb shell am force-stop`), then relaunches it (`adb shell am start -S -W`) with intent extras built by `src/helpers/launchArgs.ts`. The `-W` flag blocks until Android reports the activity as fully idle rather than returning as soon as the start request is accepted — without it, `relaunchWith()` can resolve before anything has rendered, racing the first `waitForDisplayed()` call, which showed up as real flake on the CI emulator's slower rendering. `launchArgs.ts` is the single place that builds `--ez`/`--es`/`--ei` extras strings (`resetAllState`, `resetConsent`, `contentMode`, `videoMode`, `contentDelayMs`, `videoBufferingMs`) — every mode the app's debug-options screen offers has this launch-extra equivalent (see `TEST_PLAN.md` #3.1), so tests never need to tap through the debug UI to reach a given state, and can't leak state between specs the way UI-driven setup could.
 
 ---
 

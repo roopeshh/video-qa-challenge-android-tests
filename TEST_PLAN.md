@@ -13,12 +13,12 @@ This document covers every scenario identified for the app, across three priorit
 
 Black-box UI automation via UiAutomator2, driven by documented resource-ids (Compose test tags exposed via `testTagsAsResourceId`) and intent-extra launch configuration for deterministic state setup — never by driving the debug-options UI mid-test, and never by list position. Every wait is condition-based (`waitForDisplayed` / `waitUntil` against `video_state_label` or `content_loading_indicator`), no fixed sleeps. Full reasoning for the tool choice is in `architecture.md`.
 
-The in-app debug options screen (gear icon on the overview) exists for manual/exploratory use. Every mode and reset it offers has an equivalent launch-time intent extra (§3.1), and automated setup always goes through that extra instead — faster, and it can't leak state between tests the way tapping through a UI can. The debug screen's own buttons are only driven directly where §6 says so explicitly (TC19).
+The in-app debug options screen (gear icon on the overview) exists for manual/exploratory use. Every mode and reset it offers has an equivalent launch-time intent extra (#3.1), and automated setup always goes through that extra instead — faster, and it can't leak state between tests the way tapping through a UI can. The debug screen's own buttons are only driven directly where #6 says so explicitly (TC19).
 
 ## 3. Environment
 
 - Local: Pixel 9 Pro XL, API 35 emulator, per `setup.md`
-- App: `bin/VideoQAChallenge-debug.apk` from the app repo, or an APK dropped into `android-apk/` (takes precedence — see `scripts/resolve-apk.sh`); installed fresh per test run; state reset per-spec via `am force-stop` + `am start -S` with intent extras (see `architecture.md` §6)
+- App: `bin/VideoQAChallenge-debug.apk` from the app repo, or an APK dropped into `android-apk/` (takes precedence — see `scripts/resolve-apk.sh`); installed fresh per test run; state reset per-spec via `am force-stop` + `am start -S` with intent extras (see `architecture.md` #6)
 
 ### 3.1 Debug options reference (exact in-app wording)
 
@@ -75,7 +75,7 @@ Selected because each either (a) exercises a documented negative/edge path expli
 
 **Locator-trap coverage (folded into TC02/TC03 implementation, not separate tests):** the play button is the same underlying element on both the detail page's preview and the active player (`video_play_button` is reused) — screen objects must scope queries to which screen they're on rather than searching the whole app for "the play button." Documented here so it isn't rediscovered as a bug during automation.
 
-**Why TC04 doesn't test the retry button's effect:** the content response mode is fixed for the whole app session once launched — tapping **Retry** on the error screen only re-runs the same request under the same **Server error** setting, so it's guaranteed to fail again by construction. Asserting "retry still shows the error" wouldn't exercise any real behavior worth regression-testing. Verifying actual recovery (retry succeeding) would require switching the debug mode mid-session, which is out of scope (§2, §7).
+**Why TC04 doesn't test the retry button's effect:** the content response mode is fixed for the whole app session once launched — tapping **Retry** on the error screen only re-runs the same request under the same **Server error** setting, so it's guaranteed to fail again by construction. Asserting "retry still shows the error" wouldn't exercise any real behavior worth regression-testing. Verifying actual recovery (retry succeeding) would require switching the debug mode mid-session, which is out of scope (#2, #7).
 
 ---
 

@@ -43,7 +43,7 @@ If you're generating a new file and unsure which layer something belongs in, def
 ## Naming and style conventions
 
 - Screen object files: `<screen>.screen.ts`, class `PascalCaseScreen` (e.g. `overview.screen.ts` → `OverviewScreen`)
-- Spec files: `<flow>.spec.ts`, grouped under `tests/smoke/` (P0 + closely-related P1s) or `tests/regression/` (negative/edge-case P1s) per the table in `architecture.md` §3
+- Spec files: `<flow>.spec.ts`, grouped under `tests/smoke/` (P0 + closely-related P1s) or `tests/regression/` (negative/edge-case P1s) per the table in `architecture.md` #3
 - Methods: camelCase, verb-first, intention-revealing (`openVideo`, `waitForState`, not `clickButton` or `getElement`)
 - Every public screen object method gets a one-line TSDoc comment describing *intent*, not restating the code:
   ```ts

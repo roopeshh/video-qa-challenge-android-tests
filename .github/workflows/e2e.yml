@@ -123,7 +123,7 @@ jobs:
           missing=0
           for name in AWS_DEVICE_FARM_ROLE_ARN AWS_DEVICE_FARM_PROJECT_ARN AWS_DEVICE_FARM_DEVICE_POOL_ARN; do
             if [ -z "${!name}" ]; then
-              echo "::error::Repo secret $name is not set — see architecture.md §6 for the one-time AWS setup."
+              echo "::error::Repo secret $name is not set — see architecture.md #6 for the one-time AWS setup."
               missing=1
             fi
           done
