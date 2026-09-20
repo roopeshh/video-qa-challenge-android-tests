@@ -2,7 +2,7 @@
 
 [![E2E Tests](https://github.com/roopeshh/video-qa-challenge-android-tests/actions/workflows/e2e.yml/badge.svg)](https://github.com/roopeshh/video-qa-challenge-android-tests/actions/workflows/e2e.yml)
 
-Automated black-box UI tests for the Video QA Challenge Android app — consent handling, the video overview, content detail pages, and the player's state machine.
+Automated E2E tests for the Video QA Challenge Android app — consent handling, the video overview, content detail pages, and the player's state machine.
 
 ## Solution & tooling
 
@@ -73,7 +73,7 @@ Missing SDK tools or the required AVD now produce one actionable prerequisite er
    npm run test:local
    ```
 
-   To test a different binary instead — for example a locally built APK — drop it into `android-apk/`. `scripts/resolve-apk.sh` prefers it over the app repo's prebuilt APK everywhere; leave the folder empty to use the repo binary.
+   **How the APK is chosen** (`scripts/resolve-apk.sh`, the single source of truth used everywhere — local, CI, and the AWS Device Farm job): if there's an `.apk` file in `android-apk/`, that one wins — drop a locally built or patched binary there to test it instead. If that folder is empty, it's fetched automatically: the suite shallow-clones the app repo provided for this assignment, [tchumakina/video-qa-challenge-android](https://github.com/tchumakina/video-qa-challenge-android), and uses its prebuilt `bin/VideoQAChallenge-debug.apk`. Either way, no manual APK download is required.
 
 5. Check formatting and lint rules:
 
